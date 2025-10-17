@@ -1,0 +1,352 @@
+-- Script Local Lua para Roblox
+-- Sistema de Fly e Speed com UI
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Variáveis de controle
+local flyEnabled = false
+local speedEnabled = false
+local speedValue = 16
+local flySpeed = 50
+
+local bodyVelocity
+local bodyGyro
+local flyConnection
+
+-- Criar UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MovementHacks"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Frame principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 350, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+-- Título
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(1, 0, 0, 50)
+title.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+title.BorderSizePixel = 0
+title.Text = "Movement Hacks"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 24
+title.Font = Enum.Font.GothamBold
+title.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = title
+
+-- Container de abas
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "TabContainer"
+tabContainer.Size = UDim2.new(1, -20, 0, 40)
+tabContainer.Position = UDim2.new(0, 10, 0, 60)
+tabContainer.BackgroundTransparency = 1
+tabContainer.Parent = mainFrame
+
+-- Botão aba Fly
+local flyTabBtn = Instance.new("TextButton")
+flyTabBtn.Name = "FlyTab"
+flyTabBtn.Size = UDim2.new(0.48, 0, 1, 0)
+flyTabBtn.Position = UDim2.new(0, 0, 0, 0)
+flyTabBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+flyTabBtn.BorderSizePixel = 0
+flyTabBtn.Text = "Fly"
+flyTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyTabBtn.TextSize = 18
+flyTabBtn.Font = Enum.Font.GothamBold
+flyTabBtn.Parent = tabContainer
+
+local flyTabCorner = Instance.new("UICorner")
+flyTabCorner.CornerRadius = UDim.new(0, 8)
+flyTabCorner.Parent = flyTabBtn
+
+-- Botão aba Speed
+local speedTabBtn = Instance.new("TextButton")
+speedTabBtn.Name = "SpeedTab"
+speedTabBtn.Size = UDim2.new(0.48, 0, 1, 0)
+speedTabBtn.Position = UDim2.new(0.52, 0, 0, 0)
+speedTabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+speedTabBtn.BorderSizePixel = 0
+speedTabBtn.Text = "Speed"
+speedTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedTabBtn.TextSize = 18
+speedTabBtn.Font = Enum.Font.GothamBold
+speedTabBtn.Parent = tabContainer
+
+local speedTabCorner = Instance.new("UICorner")
+speedTabCorner.CornerRadius = UDim.new(0, 8)
+speedTabCorner.Parent = speedTabBtn
+
+-- Frame Fly
+local flyFrame = Instance.new("Frame")
+flyFrame.Name = "FlyFrame"
+flyFrame.Size = UDim2.new(1, -20, 1, -120)
+flyFrame.Position = UDim2.new(0, 10, 0, 110)
+flyFrame.BackgroundTransparency = 1
+flyFrame.Visible = true
+flyFrame.Parent = mainFrame
+
+-- Botão Fly
+local flyBtn = Instance.new("TextButton")
+flyBtn.Name = "FlyButton"
+flyBtn.Size = UDim2.new(0, 200, 0, 60)
+flyBtn.Position = UDim2.new(0.5, -100, 0.4, -30)
+flyBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+flyBtn.BorderSizePixel = 0
+flyBtn.Text = "Ativar Fly"
+flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyBtn.TextSize = 20
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.Parent = flyFrame
+
+local flyBtnCorner = Instance.new("UICorner")
+flyBtnCorner.CornerRadius = UDim.new(0, 10)
+flyBtnCorner.Parent = flyBtn
+
+-- Instruções Fly
+local flyInstructions = Instance.new("TextLabel")
+flyInstructions.Size = UDim2.new(1, -40, 0, 80)
+flyInstructions.Position = UDim2.new(0, 20, 0.6, 0)
+flyInstructions.BackgroundTransparency = 1
+flyInstructions.Text = "Controles:\nW/A/S/D - Mover\nEspaço - Subir\nShift - Descer"
+flyInstructions.TextColor3 = Color3.fromRGB(200, 200, 200)
+flyInstructions.TextSize = 16
+flyInstructions.Font = Enum.Font.Gotham
+flyInstructions.TextWrapped = true
+flyInstructions.Parent = flyFrame
+
+-- Frame Speed
+local speedFrame = Instance.new("Frame")
+speedFrame.Name = "SpeedFrame"
+speedFrame.Size = UDim2.new(1, -20, 1, -120)
+speedFrame.Position = UDim2.new(0, 10, 0, 110)
+speedFrame.BackgroundTransparency = 1
+speedFrame.Visible = false
+speedFrame.Parent = mainFrame
+
+-- Label velocidade
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, -40, 0, 40)
+speedLabel.Position = UDim2.new(0, 20, 0, 20)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Velocidade: 16"
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextSize = 18
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Parent = speedFrame
+
+-- Slider de velocidade
+local sliderBg = Instance.new("Frame")
+sliderBg.Size = UDim2.new(1, -40, 0, 30)
+sliderBg.Position = UDim2.new(0, 20, 0, 70)
+sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+sliderBg.BorderSizePixel = 0
+sliderBg.Parent = speedFrame
+
+local sliderBgCorner = Instance.new("UICorner")
+sliderBgCorner.CornerRadius = UDim.new(0, 8)
+sliderBgCorner.Parent = sliderBg
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new(0.16, 0, 1, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = sliderBg
+
+local sliderFillCorner = Instance.new("UICorner")
+sliderFillCorner.CornerRadius = UDim.new(0, 8)
+sliderFillCorner.Parent = sliderFill
+
+local sliderBtn = Instance.new("TextButton")
+sliderBtn.Size = UDim2.new(1, 0, 1, 0)
+sliderBtn.BackgroundTransparency = 1
+sliderBtn.Text = ""
+sliderBtn.Parent = sliderBg
+
+-- Botão Speed
+local speedBtn = Instance.new("TextButton")
+speedBtn.Name = "SpeedButton"
+speedBtn.Size = UDim2.new(0, 200, 0, 60)
+speedBtn.Position = UDim2.new(0.5, -100, 0, 130)
+speedBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+speedBtn.BorderSizePixel = 0
+speedBtn.Text = "Ativar Speed"
+speedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBtn.TextSize = 20
+speedBtn.Font = Enum.Font.GothamBold
+speedBtn.Parent = speedFrame
+
+local speedBtnCorner = Instance.new("UICorner")
+speedBtnCorner.CornerRadius = UDim.new(0, 10)
+speedBtnCorner.Parent = speedBtn
+
+-- Funções Fly
+local function startFly()
+    flyEnabled = true
+    flyBtn.Text = "Desativar Fly"
+    flyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
+    
+    flyConnection = RunService.Heartbeat:Connect(function()
+        local camera = workspace.CurrentCamera
+        local direction = Vector3.new(0, 0, 0)
+        
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            direction = direction + (camera.CFrame.LookVector * flySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            direction = direction - (camera.CFrame.LookVector * flySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            direction = direction - (camera.CFrame.RightVector * flySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            direction = direction + (camera.CFrame.RightVector * flySpeed)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            direction = direction + Vector3.new(0, flySpeed, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            direction = direction - Vector3.new(0, flySpeed, 0)
+        end
+        
+        bodyVelocity.Velocity = direction
+        bodyGyro.CFrame = camera.CFrame
+    end)
+end
+
+local function stopFly()
+    flyEnabled = false
+    flyBtn.Text = "Ativar Fly"
+    flyBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+    
+    if flyConnection then
+        flyConnection:Disconnect()
+    end
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+    end
+    if bodyGyro then
+        bodyGyro:Destroy()
+    end
+end
+
+-- Funções Speed
+local function updateSpeed()
+    if speedEnabled then
+        humanoid.WalkSpeed = speedValue
+    end
+end
+
+-- Eventos das abas
+flyTabBtn.MouseButton1Click:Connect(function()
+    flyFrame.Visible = true
+    speedFrame.Visible = false
+    flyTabBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+    speedTabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+end)
+
+speedTabBtn.MouseButton1Click:Connect(function()
+    flyFrame.Visible = false
+    speedFrame.Visible = true
+    flyTabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    speedTabBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+end)
+
+-- Evento botão Fly
+flyBtn.MouseButton1Click:Connect(function()
+    if flyEnabled then
+        stopFly()
+    else
+        startFly()
+    end
+end)
+
+-- Evento slider Speed
+local dragging = false
+sliderBtn.MouseButton1Down:Connect(function()
+    dragging = true
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if dragging then
+        local mousePos = UserInputService:GetMouseLocation()
+        local sliderPos = sliderBg.AbsolutePosition
+        local sliderSize = sliderBg.AbsoluteSize
+        
+        local relativeX = math.clamp(mousePos.X - sliderPos.X, 0, sliderSize.X)
+        local percent = relativeX / sliderSize.X
+        
+        speedValue = math.floor(percent * 100)
+        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+        speedLabel.Text = "Velocidade: " .. speedValue
+        
+        updateSpeed()
+    end
+end)
+
+-- Evento botão Speed
+speedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    
+    if speedEnabled then
+        speedBtn.Text = "Desativar Speed"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        humanoid.WalkSpeed = speedValue
+    else
+        speedBtn.Text = "Ativar Speed"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        humanoid.WalkSpeed = 16
+    end
+end)
+
+-- Atualizar character ao respawnar
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    if flyEnabled then
+        stopFly()
+    end
+    if speedEnabled then
+        speedEnabled = false
+        speedBtn.Text = "Ativar Speed"
+        speedBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+    end
+end)
